@@ -1,76 +1,61 @@
 import streamlit as st
 import cv2
 import numpy as np
-import nltk
-from nltk.corpus import stopwords
 import math
+from collections import Counter
 
-nltk.download('stopwords')
-
-st.title("🧠 Text to Mind Map Generator")
+st.title("AI Mind Map Generator")
 
 text = st.text_area("Enter your content")
 
 if st.button("Generate Mind Map"):
 
-    stop_words = set(stopwords.words('english'))
-
     words = text.lower().split()
 
-    keywords = [w for w in words if w not in stop_words]
+    stopwords = ["is","the","a","an","and","of","to","in","for","on","with","that","this"]
 
-    keywords = list(dict.fromkeys(keywords))[:8]
+    words = [w for w in words if w not in stopwords]
 
-    # Create blank white image
-    img = np.ones((700,900,3), dtype=np.uint8) * 255
+    freq = Counter(words)
 
-    center = (450,350)
+    keywords = [w for w,c in freq.most_common(6)]
 
-    # Draw center topic
-    cv2.circle(img, center, 60, (0,100,255), -1)
-    cv2.putText(img,"Topic",(415,355),
+    img = np.ones((800,1000,3),dtype=np.uint8)*255
+
+    center = (500,400)
+
+    # center node
+    cv2.circle(img,center,80,(0,150,255),-1)
+    cv2.putText(img,"MAIN TOPIC",(430,405),
                 cv2.FONT_HERSHEY_SIMPLEX,0.8,(255,255,255),2)
 
-    # Colors for nodes
-    colors = [
-        (255,0,0),
-        (0,200,0),
-        (0,0,255),
-        (255,100,0),
-        (200,0,200),
-        (0,200,200),
-        (100,100,255),
-        (0,150,255)
-    ]
+    radius = 280
+    angle_step = 360/len(keywords)
 
-    radius = 250
-    angle_step = 360 / len(keywords)
+    colors = [(255,0,0),(0,200,0),(0,0,255),
+              (255,100,0),(200,0,200),(0,200,200)]
 
-    for i, word in enumerate(keywords):
+    for i,word in enumerate(keywords):
 
-        angle = math.radians(i * angle_step)
+        angle = math.radians(i*angle_step)
 
         x = int(center[0] + radius * math.cos(angle))
         y = int(center[1] + radius * math.sin(angle))
 
-        color = colors[i % len(colors)]
+        color = colors[i]
 
-        # draw line
-        cv2.line(img, center, (x,y), color, 3)
+        # branch
+        cv2.line(img,center,(x,y),color,3)
 
-        # draw node
-        cv2.circle(img, (x,y), 50, color, -1)
+        # node
+        cv2.ellipse(img,(x,y),(90,40),0,0,360,color,-1)
 
-        cv2.putText(img, word[:10],
-                    (x-35,y+5),
-                    cv2.FONT_HERSHEY_SIMPLEX,
-                    0.6,
-                    (255,255,255),
-                    2)
+        cv2.putText(img,word,(x-40,y+5),
+                    cv2.FONT_HERSHEY_SIMPLEX,0.6,(255,255,255),2)
 
-    st.image(img, channels="BGR")
+    st.image(img,channels="BGR")
 
-    cv2.imwrite("mindmap.png", img)
+    cv2.imwrite("mindmap.png",img)
 
-    with open("mindmap.png","rb") as file:
-        st.download_button("Download Mind Map",file,"mindmap.png")
+    with open("mindmap.png","rb") as f:
+        st.download_button("Download Mind Map",f,"mindmap.png")
