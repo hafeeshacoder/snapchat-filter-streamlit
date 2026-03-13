@@ -1,38 +1,35 @@
 import streamlit as st
 import cv2
 import numpy as np
-from streamlit_webrtc import webrtc_streamer, VideoTransformerBase
 
-face_cascade = cv2.CascadeClassifier("haarcascade_frontalface_default.xml")
-crown = cv2.imread("crown.png", -1)
+st.title("Text to Mind Map Generator")
 
-class FaceFilter(VideoTransformerBase):
+text = st.text_area("Enter your content")
 
-    def transform(self, frame):
-        img = frame.to_ndarray(format="bgr24")
+if st.button("Generate Mind Map"):
 
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+    words = text.split()
+    keywords = words[:5]
 
-        for (x, y, w, h) in faces:
+    img = np.ones((600,800,3), dtype=np.uint8) * 255
 
-            crown_width = w
-            crown_height = int(h/2)
+    center = (400,300)
+    cv2.circle(img, center, 40, (0,0,0), 2)
+    cv2.putText(img,"Topic",(370,305),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),1)
 
-            resized_crown = cv2.resize(crown,(crown_width,crown_height))
+    positions = [(200,150),(600,150),(200,450),(600,450),(400,100)]
 
-            for i in range(crown_height):
-                for j in range(crown_width):
-                    if resized_crown[i,j][3] != 0:
-                        img[y-i-10, x+j] = resized_crown[i,j][:3]
+    for i, word in enumerate(keywords):
+        x,y = positions[i]
 
-        return img
+        cv2.rectangle(img,(x-50,y-20),(x+50,y+20),(0,0,0),2)
+        cv2.putText(img,word,(x-40,y+5),cv2.FONT_HERSHEY_SIMPLEX,0.5,(0,0,0),1)
 
+        cv2.line(img,center,(x,y),(0,0,0),2)
 
-st.title("Snapchat Style Face Filter")
-st.write("Real time face filter using Streamlit")
+    st.image(img, channels="BGR")
 
-webrtc_streamer(
-    key="snapchat",
-    video_transformer_factory=FaceFilter
-)
+    cv2.imwrite("mindmap.png", img)
+
+    with open("mindmap.png","rb") as file:
+        st.download_button("Download Mind Map",file,"mindmap.png")
