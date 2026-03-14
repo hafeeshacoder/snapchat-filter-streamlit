@@ -2,33 +2,72 @@ import streamlit as st
 import numpy as np
 import cv2
 
-# Page settings
-st.set_page_config(page_title="Smart Color Generator", page_icon="🎨")
+st.set_page_config(page_title="Smart Color Generator", page_icon="🎨", layout="centered")
 
-# Custom CSS for styling
+# ---------- CSS STYLING ----------
 st.markdown("""
 <style>
+
+body {
+background: linear-gradient(120deg,#f6d365,#fda085);
+}
+
 .main-title{
 text-align:center;
-font-size:42px;
+font-size:48px;
 font-weight:bold;
 color:#ff4b4b;
+margin-bottom:5px;
 }
+
 .sub-text{
 text-align:center;
-font-size:18px;
-color:gray;
+font-size:20px;
+color:#444;
+margin-bottom:30px;
 }
+
+.stTextInput input{
+border-radius:10px;
+border:2px solid #ff4b4b;
+padding:10px;
+font-size:18px;
+}
+
+.stButton>button{
+background: linear-gradient(90deg,#ff4b4b,#ff9a9e);
+color:white;
+font-size:18px;
+border-radius:10px;
+padding:10px 25px;
+border:none;
+}
+
+.stButton>button:hover{
+background: linear-gradient(90deg,#ff6a6a,#ffb199);
+}
+
+.color-card{
+padding:15px;
+border-radius:15px;
+box-shadow:0px 5px 15px rgba(0,0,0,0.2);
+text-align:center;
+font-size:18px;
+font-weight:bold;
+margin-top:10px;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
+# ---------- TITLE ----------
 st.markdown('<p class="main-title">🎨 Smart Color Generator</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-text">Enter a color name and generate a beautiful color preview</p>', unsafe_allow_html=True)
+st.markdown('<p class="sub-text">Generate beautiful colors and download them instantly</p>', unsafe_allow_html=True)
 
-# User input
+# ---------- INPUT ----------
 color_input = st.text_input("Enter Color Name")
 
-# Color dictionary (BGR for OpenCV)
+# ---------- COLOR DICTIONARY ----------
 colors = {
     "red": (0,0,255),
     "green": (0,255,0),
@@ -44,38 +83,34 @@ colors = {
     "brown": (19,69,139)
 }
 
-# Button
-if st.button("Generate Color"):
+# ---------- BUTTON ----------
+if st.button("✨ Generate Color"):
 
     color = color_input.lower()
 
     if color in colors:
 
-        # Create image
         img = np.zeros((400,400,3), dtype=np.uint8)
         img[:] = colors[color]
 
-        # Display image
-        st.image(img, channels="BGR", caption=f"{color.capitalize()} Color")
+        st.image(img, channels="BGR", caption=f"{color.capitalize()} Color Preview")
 
-        # Get RGB values
         b,g,r = colors[color]
-
-        # Convert to HEX
         hex_color = '#%02x%02x%02x' % (r,g,b)
 
-        # Display color info
-        st.success(f"RGB Value: ({r}, {g}, {b})")
-        st.info(f"HEX Code: {hex_color}")
+        st.markdown(f"""
+        <div class="color-card">
+        RGB Value : ({r}, {g}, {b}) <br>
+        HEX Code : {hex_color}
+        </div>
+        """, unsafe_allow_html=True)
 
-        # Save image
         file_name = f"{color}_color.png"
         cv2.imwrite(file_name, img)
 
-        # Download button
         with open(file_name, "rb") as file:
             st.download_button(
-                label="Download Image",
+                label="⬇ Download Image",
                 data=file,
                 file_name=file_name,
                 mime="image/png"
