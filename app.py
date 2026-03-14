@@ -1,84 +1,59 @@
 import streamlit as st
-import cv2
 import numpy as np
-import math
-import re
-from collections import Counter
+import cv2
 
-st.title("AI Mind Map Generator")
+st.title("🎨 Text to Color Generator")
 
-text = st.text_area("Enter your content")
+st.write("Type a color name and generate a color image.")
 
-if st.button("Generate Mind Map"):
+color_input = st.text_input("Enter Color Name")
 
-    words = re.findall(r'\b[a-zA-Z]+\b', text.lower())
+colors = {
+    "red": (0,0,255),
+    "green": (0,255,0),
+    "blue": (255,0,0),
+    "yellow": (0,255,255),
+    "purple": (255,0,255),
+    "cyan": (255,255,0),
+    "orange": (0,165,255),
+    "pink": (203,192,255),
+    "black": (0,0,0),
+    "white": (255,255,255),
+    "gray": (128,128,128),
+    "brown": (19,69,139)
+}
 
-    stopwords = {
-        "the","is","a","an","and","of","to","in","for","on","with",
-        "that","this","it","as","are","was","be","by","from"
-    }
+if st.button("Generate Color"):
 
-    words = [w for w in words if w not in stopwords and len(w) > 3]
+    color = color_input.lower()
 
-    freq = Counter(words)
+    if color in colors:
 
-    keywords = [w for w,_ in freq.most_common(6)]
+        img = np.zeros((400,400,3), dtype=np.uint8)
 
-    topic = keywords[0].capitalize()
-
-    img = np.ones((800,1000,3),dtype=np.uint8)*255
-
-    center = (500,400)
-
-    # Draw center topic
-    cv2.circle(img,center,90,(0,140,255),-1)
-
-    text_size = cv2.getTextSize(topic,
-                                cv2.FONT_HERSHEY_SIMPLEX,
-                                0.9,2)[0]
-
-    cv2.putText(img,
-                topic,
-                (center[0]-text_size[0]//2,
-                 center[1]+10),
-                cv2.FONT_HERSHEY_SIMPLEX,
-                0.9,(255,255,255),2)
-
-    radius = 300
-    angle_step = 360/len(keywords)
-
-    colors = [
-        (255,0,0),
-        (0,200,0),
-        (0,0,255),
-        (255,100,0),
-        (200,0,200),
-        (0,200,200)
-    ]
-
-    for i,word in enumerate(keywords[1:]):
-
-        angle = math.radians(i*angle_step)
-
-        x = int(center[0] + radius * math.cos(angle))
-        y = int(center[1] + radius * math.sin(angle))
-
-        color = colors[i]
-
-        cv2.line(img,center,(x,y),color,3)
-
-        cv2.ellipse(img,(x,y),(100,45),0,0,360,color,-1)
-
-        txt = word.capitalize()
-
-        size = cv2.getTextSize(txt,
-                               cv2.FONT_HERSHEY_SIMPLEX,
-                               0.7,2)[0]
+        img[:] = colors[color]
 
         cv2.putText(img,
-                    txt,
-                    (x-size[0]//2,y+5),
+                    color.upper(),
+                    (80,210),
                     cv2.FONT_HERSHEY_SIMPLEX,
-                    0.7,(255,255,255),2)
+                    1,
+                    (255,255,255),
+                    2)
 
-    st.image(img,channels="BGR")
+        st.image(img, channels="BGR")
+
+        file_name = f"{color}_color.png"
+
+        cv2.imwrite(file_name, img)
+
+        with open(file_name, "rb") as file:
+            st.download_button(
+                label="Download Image",
+                data=file,
+                file_name=file_name,
+                mime="image/png"
+            )
+
+    else:
+        st.error("Color not found. Try red, blue, green etc.")
