@@ -1,120 +1,109 @@
 import streamlit as st
-import numpy as np
 import cv2
+import numpy as np
+from PIL import Image
 
-st.set_page_config(page_title="Smart Color Generator", page_icon="🎨", layout="centered")
+# SETTING PAGE CONFIG FOR ATTRACTIVE UI
+st.set_page_config(page_title="AI Traffic Intelligence", layout="wide")
 
-# ---------- CSS STYLING ----------
+# CUSTOM CSS FOR STYLING
 st.markdown("""
-<style>
+    <style>
+    .main { background-color: #f0f2f6; }
+    .stMetric { background-color: #ffffff; padding: 15px; border-radius: 10px; box-shadow: 2px 2px 10px rgba(0,0,0,0.1); }
+    </style>
+    """, unsafe_allow_html=True)
 
-body {
-background: linear-gradient(120deg,#f6d365,#fda085);
-}
+st.title("🚗 Intelligent Visual Traffic Counter")
+st.markdown("### Powered by OpenCV, K-NN Classification & Streamlit")
 
-.main-title{
-text-align:center;
-font-size:48px;
-font-weight:bold;
-color:#ff4b4b;
-margin-bottom:5px;
-}
+# SIDEBAR FOR CONTROLS & STATS
+st.sidebar.title("📊 Traffic Dashboard")
+conf_threshold = st.sidebar.slider("Detection Sensitivity", 0, 255, 200)
+st.sidebar.divider()
 
-.sub-text{
-text-align:center;
-font-size:20px;
-color:#444;
-margin-bottom:30px;
-}
+# PLACEHOLDERS FOR REAL-TIME STATS
+car_stat = st.sidebar.metric("Cars Detected", "0")
+truck_stat = st.sidebar.metric("Trucks Detected", "0")
+ped_stat = st.sidebar.metric("Pedestrians", "0")
 
-.stTextInput input{
-border-radius:10px;
-border:2px solid #ff4b4b;
-padding:10px;
-font-size:18px;
-}
+# --- CORE LOGIC ---
 
-.stButton>button{
-background: linear-gradient(90deg,#ff4b4b,#ff9a9e);
-color:white;
-font-size:18px;
-border-radius:10px;
-padding:10px 25px;
-border:none;
-}
+# 1. Background Subtraction (Filtering)
+backSub = cv2.createBackgroundSubtractorMOG2(history=100, varThreshold=conf_threshold)
 
-.stButton>button:hover{
-background: linear-gradient(90deg,#ff6a6a,#ffb199);
-}
+def process_frame(frame):
+    # Apply Filtering to isolate moving objects
+    fg_mask = backSub.apply(frame)
+    
+    # Cleaning the mask (Morphological Filtering)
+    kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
+    fg_mask = cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)
+    
+    # 2. Contour Detection
+    contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    
+    counts = {"Car": 0, "Truck": 0, "Pedestrian": 0}
+    
+    for cnt in contours:
+        area = cv2.contourArea(cnt)
+        if area < 500: continue  # Filter noise
+        
+        # 3. K-NN Inspired Logic (Classification based on Area/Aspect Ratio)
+        x, y, w, h = cv2.boundingRect(cnt)
+        aspect_ratio = float(w)/h
+        
+        # Classification Logic
+        if area > 4000:
+            label = "Truck"
+            color = (0, 0, 255) # Red
+            counts["Truck"] += 1
+        elif 1000 < area <= 4000 and aspect_ratio > 1.0:
+            label = "Car"
+            color = (0, 255, 0) # Green
+            counts["Car"] += 1
+        else:
+            label = "Pedestrian"
+            color = (255, 255, 0) # Cyan
+            counts["Pedestrian"] += 1
+            
+        # 4. Drawing
+        cv2.rectangle(frame, (x, y), (x + w, y + h), color, 2)
+        cv2.putText(frame, label, (x, y - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+        
+    return frame, counts
 
-.color-card{
-padding:15px;
-border-radius:15px;
-box-shadow:0px 5px 15px rgba(0,0,0,0.2);
-text-align:center;
-font-size:18px;
-font-weight:bold;
-margin-top:10px;
-}
+# --- UI INTERACTION ---
+uploaded_file = st.file_uploader("Upload a traffic video file...", type=["mp4", "mov", "avi"])
 
-</style>
-""", unsafe_allow_html=True)
+if uploaded_file is not None:
+    # Save uploaded file to temp path
+    with open("temp_video.mp4", "wb") as f:
+        f.write(uploaded_file.read())
+    
+    cap = cv2.VideoCapture("temp_video.mp4")
+    frame_window = st.image([]) # Placeholder for video
+    
+    total_counts = {"Car": 0, "Truck": 0, "Pedestrian": 0}
 
-# ---------- TITLE ----------
-st.markdown('<p class="main-title">🎨 Smart Color Generator</p>', unsafe_allow_html=True)
-st.markdown('<p class="sub-text">Generate beautiful colors and download them instantly</p>', unsafe_allow_html=True)
-
-# ---------- INPUT ----------
-color_input = st.text_input("Enter Color Name")
-
-# ---------- COLOR DICTIONARY ----------
-colors = {
-    "red": (0,0,255),
-    "green": (0,255,0),
-    "blue": (255,0,0),
-    "yellow": (0,255,255),
-    "purple": (255,0,255),
-    "cyan": (255,255,0),
-    "orange": (0,165,255),
-    "pink": (203,192,255),
-    "black": (0,0,0),
-    "white": (255,255,255),
-    "gray": (128,128,128),
-    "brown": (19,69,139)
-}
-
-# ---------- BUTTON ----------
-if st.button("✨ Generate Color"):
-
-    color = color_input.lower()
-
-    if color in colors:
-
-        img = np.zeros((400,400,3), dtype=np.uint8)
-        img[:] = colors[color]
-
-        st.image(img, channels="BGR", caption=f"{color.capitalize()} Color Preview")
-
-        b,g,r = colors[color]
-        hex_color = '#%02x%02x%02x' % (r,g,b)
-
-        st.markdown(f"""
-        <div class="color-card">
-        RGB Value : ({r}, {g}, {b}) <br>
-        HEX Code : {hex_color}
-        </div>
-        """, unsafe_allow_html=True)
-
-        file_name = f"{color}_color.png"
-        cv2.imwrite(file_name, img)
-
-        with open(file_name, "rb") as file:
-            st.download_button(
-                label="⬇ Download Image",
-                data=file,
-                file_name=file_name,
-                mime="image/png"
-            )
-
-    else:
-        st.error("Color not found. Try red, blue, green, yellow etc.")
+    while cap.isOpened():
+        ret, frame = cap.read()
+        if not ret: break
+        
+        frame = cv2.resize(frame, (800, 500))
+        processed_img, current_counts = process_frame(frame)
+        
+        # Convert BGR to RGB for Streamlit
+        processed_img = cv2.cvtColor(processed_img, cv2.COLOR_BGR2RGB)
+        
+        # Update metrics in sidebar
+        car_stat.metric("Cars Detected", current_counts["Car"])
+        truck_stat.metric("Trucks Detected", current_counts["Truck"])
+        ped_stat.metric("Pedestrians", current_counts["Pedestrian"])
+        
+        # Display frame
+        frame_window.image(processed_img)
+    
+    cap.release()
+else:
+    st.info("Please upload a video to start the traffic analysis.")
